@@ -17,13 +17,15 @@ from django.contrib import admin
 from django.urls import path
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView, TokenVerifyView
 
-from deepleasy.views import ModelBuilder, ModelOptions, ModelProgress, ModelHistory, ModelGetter
+from deepleasy.views import ModelBuilderSupervised, ModelOptions, ModelProgress, ModelHistory, ModelGetter, \
+    ModelBuilderUnsupervised
 
 urlpatterns = [
     path('admin/', admin.site.urls),
 
     path('api/model/options/', ModelOptions.as_view()),
-    path('api/model/builder/', ModelBuilder.as_view()),
+    path('api/model/builder/supervised', ModelBuilderSupervised.as_view()),
+    path('api/model/builder/unsupervised', ModelBuilderUnsupervised.as_view()),
 
     path('api/model/progress/', ModelProgress.as_view()),
     path('api/model/history/', ModelHistory.as_view()),

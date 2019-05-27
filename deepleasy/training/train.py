@@ -1,3 +1,4 @@
+import numpy as np
 from celery import shared_task
 from django.contrib.auth.models import User
 from tensorflow.contrib.saved_model import save_keras_model
@@ -8,6 +9,7 @@ from tensorflow.python.keras.models import Sequential
 
 from deepleasy.dataset.mnist import get_mnist
 from deepleasy.models import Progress, History
+from deepleasy.training.clustering import train_autoencoder, build_clustering_model
 
 
 class LossHistory(Callback):
@@ -32,17 +34,23 @@ def get_training_data(dataset: str):
 		return get_mnist()
 
 
+def init_prog_hist(user: str, dataset):
+	user = User.objects.get(username=user)
+	prog = Progress.objects.get(user=user)
+	prog.task_id = build_model_supervised.request.id
+	prog.save()
+	history = History(user=user, path="", steps_info={}, dataset=dataset)
+	return prog, history
+
+
 @shared_task
-def build_model(model_info: dict, user, model_path: str):
+def build_model_supervised(model_info: dict, user: str, model_path: str):
 	print(model_info)
 
 	model = Sequential()
 	first = True
-	user = User.objects.get(username=user)
-	prog = Progress.objects.get(user=user)
-	prog.task_id = build_model.request.id
-	prog.save()
-	history = History(user=user, path="", steps_info={}, dataset=model_info["dataset"])
+
+	prog, history = init_prog_hist(user, model_info["dataset"])
 
 	x_train, x_test, y_train, y_test, input_shape = get_training_data(model_info["dataset"])
 
@@ -110,3 +118,41 @@ def build_model(model_info: dict, user, model_path: str):
 	history.save()
 
 	prog.delete()
+
+
+@shared_task
+def build_model_unsupervised(model_info: dict, user, model_path: str):
+	print(model_info)
+
+	x_train, x_test, y_train, y_test, input_shape = get_training_data(model_info["dataset"])
+
+	if model_info["mnist"]:
+		x_train = x_train.reshape(-1, 28 * 28)
+		x_test = x_test.reshape(-1, 28 * 28)
+
+	prog, history = init_prog_hist(user, model_info["dataset"])
+
+	n_features = np.shape(x_train)[1]
+	model_info["input4encoder"] = n_features
+
+	encoder = train_autoencoder(x_train, model_info)
+	model = build_clustering_model(x_train, encoder, model_info["n_clusters"])
+
+	for i in range(model_info["epochs"]):  # walk through iterations
+		predictions = model.predict(x_train)  # predict clusters
+		weights = predictions ** 2 / predictions.sum(0)  # calculate
+		targets = (weights.T / weights.sum(1)).T  # target distribution
+		model.train_on_batch(x=x_train, y=targets)  # update model weights
+
+	saved_model_path = save_keras_model(model, model_path, as_text=True)
+
+	accuracy = model.evaluate(x_test, y_test)
+
+	history.path = saved_model_path.decode()
+	history.accuracy = accuracy[1]
+	history.loss = accuracy[0]
+	history.steps_info = []
+	history.save()
+
+	prog.delete()
+

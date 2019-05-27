@@ -9,16 +9,38 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from deepleasy.control.options import *
-from deepleasy.control.validation import model_builder_ok
+from deepleasy.control.validation import model_builder_ok, clustering_checker
 from deepleasy.models import Progress, History
-from deepleasy.training.train import build_model
+from deepleasy.training.train import build_model_supervised, build_model_unsupervised
 from webtfg.celery import app
 
 model_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'models')
 
 
 # Create your views here.
-class ModelBuilder(APIView):
+class ModelBuilderUnsupervised(APIView):
+	permission_classes = (IsAuthenticated, )
+
+	def post(self, request: Request):
+		if not model_builder_ok(request.data) and clustering_checker(request.data):
+			print(request.data)
+			return Response({
+				"success": False,
+				"message": "The model had some problems whilst data verification, refresh the page and try again"
+			})
+
+		Progress(user=request.user, epochs=0, max_epochs=request.data["epochs"], running=False).save()
+
+		build_model_unsupervised.delay(request.data, request.user.username, model_path)
+		print(request.user)
+
+		return Response({
+			"success": True,
+			"message": "The model is built! Have a cup of tea while waiting :)"
+		})
+
+
+class ModelBuilderSupervised(APIView):
 	permission_classes = (IsAuthenticated, )
 
 	def post(self, request: Request):
@@ -31,9 +53,8 @@ class ModelBuilder(APIView):
 
 		Progress(user=request.user, epochs=0, max_epochs=request.data["epochs"], running=False).save()
 
-		build_model.delay(request.data, request.user.username, model_path)
+		build_model_supervised.delay(request.data, request.user.username, model_path)
 		print(request.user)
-
 
 		return Response({
 			"success": True,

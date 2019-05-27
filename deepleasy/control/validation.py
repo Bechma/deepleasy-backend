@@ -2,6 +2,34 @@ from .options import *
 
 
 def model_builder_ok(data: dict):
+	if not parameters_checker(data):
+		return False
+
+	try:
+		for layer in data["layers"]:
+			if not layer_checker(layer):
+				return False
+		return True
+	except:
+		return False
+
+
+def clustering_checker(data: dict):
+	try:
+		if data["autoencoderOptimizer"] in OPTIMIZERS and data["autoencoderLoss"] in LOSSES and clusters_checker(data):
+			return True
+	except:
+		return False
+
+
+def clusters_checker(data: dict):
+	try:
+		return data["n_clusters"] > 1
+	except:
+		return False
+
+
+def parameters_checker(data: dict):
 	mandatory_params = {"epochs", "batchSize", "loss", "optimizer", "dataset", "trainPercentage"}
 
 	if not mandatory_params.issubset(set(data.keys())):
@@ -14,14 +42,7 @@ def model_builder_ok(data: dict):
 
 	if data.get("layers") is None or not isinstance(data["layers"], list):
 		return False
-
-	try:
-		for layer in data["layers"]:
-			if not layer_checker(layer):
-				return False
-		return True
-	except:
-		return False
+	return True
 
 
 def layer_checker(layer: dict):
