@@ -37,7 +37,7 @@ def get_training_data(dataset: str):
 def init_prog_hist(user: str, dataset):
 	user = User.objects.get(username=user)
 	prog = Progress.objects.get(user=user)
-	prog.task_id = build_model_supervised.request.id
+	prog.task_id = build_model_unsupervised.request.id
 	prog.save()
 	history = History(user=user, path="", steps_info={}, dataset=dataset)
 	return prog, history
@@ -126,7 +126,7 @@ def build_model_unsupervised(model_info: dict, user, model_path: str):
 
 	x_train, x_test, y_train, y_test, input_shape = get_training_data(model_info["dataset"])
 
-	if model_info["mnist"]:
+	if model_info["dataset"] == 'mnist':
 		x_train = x_train.reshape(-1, 28 * 28)
 		x_test = x_test.reshape(-1, 28 * 28)
 
@@ -149,8 +149,8 @@ def build_model_unsupervised(model_info: dict, user, model_path: str):
 	accuracy = model.evaluate(x_test, y_test)
 
 	history.path = saved_model_path.decode()
-	history.accuracy = accuracy[1]
-	history.loss = accuracy[0]
+	history.accuracy = accuracy
+	history.loss = -1.0
 	history.steps_info = []
 	history.save()
 

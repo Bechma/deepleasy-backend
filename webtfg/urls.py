@@ -18,7 +18,7 @@ from django.urls import path
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView, TokenVerifyView
 
 from deepleasy.views import ModelBuilderSupervised, ModelOptions, ModelProgress, ModelHistory, ModelGetter, \
-    ModelBuilderUnsupervised
+    ModelBuilderUnsupervised, UserStats
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -30,6 +30,8 @@ urlpatterns = [
     path('api/model/progress/', ModelProgress.as_view()),
     path('api/model/history/', ModelHistory.as_view()),
     path('api/model/', ModelGetter.as_view()),
+
+    path('api/user/stats/', UserStats.as_view()),
 
     path('api/auth/token/', TokenObtainPairView.as_view()),
     path('api/auth/verify/', TokenVerifyView.as_view()),

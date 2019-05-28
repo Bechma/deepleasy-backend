@@ -153,3 +153,37 @@ class ModelGetter(APIView):
 			return r
 		except:
 			return Response("Error", 404)
+
+
+class UserStats(APIView):
+	permission_classes = (IsAuthenticated, )
+
+	def get(self, request: Request):
+		progress = None
+		try:
+			progress = Progress.objects.get(user=request.user)
+		except:
+			pass
+
+		history = None
+		try:
+			history = History.objects.filter(user=request.user).count()
+		except:
+			pass
+
+		response = {}
+		if progress is not None:
+			response["epochs"] = progress.epochs
+			response["max_epochs"] = progress.max_epochs
+			response["running"] = progress.running
+		else:
+			response["epochs"] = 0
+			response["max_epochs"] = 0
+			response["running"] = False
+
+		if history is not None:
+			response["history_entries"] = history
+		else:
+			response["history_entries"] = 0
+
+		return Response(response)
