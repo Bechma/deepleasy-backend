@@ -25,7 +25,7 @@ SECRET_KEY = open('secret.txt').read()
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['localhost', '127.0.0.1']
+ALLOWED_HOSTS = ['*']
 
 
 # Application definition
@@ -167,7 +167,5 @@ STATICFILES_DIRS = [
 # ...
 # https://pypi.org/project/django-cors-headers/
 CORS_ORIGIN_ALLOW_ALL = True
-
-LOGIN_URL = '/login/'
 
 CELERY_BROKER_URL = 'redis://localhost'

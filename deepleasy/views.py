@@ -29,7 +29,13 @@ class ModelBuilderUnsupervised(APIView):
 				"message": "The model had some problems whilst data verification, refresh the page and try again"
 			})
 
-		Progress(user=request.user, epochs=0, max_epochs=request.data["epochs"], running=False).save()
+		try:
+			Progress(user=request.user, epochs=0, max_epochs=request.data["epochs"], running=False).save()
+		except:
+			return Response({
+				"success": False,
+				"message": "There is another model building, please wait until it's finished"
+			})
 
 		build_model_unsupervised.delay(request.data, request.user.username, model_path)
 		print(request.user)
@@ -51,7 +57,13 @@ class ModelBuilderSupervised(APIView):
 				"message": "The model had some problems whilst data verification, refresh the page and try again"
 			})
 
-		Progress(user=request.user, epochs=0, max_epochs=request.data["epochs"], running=False).save()
+		try:
+			Progress(user=request.user, epochs=0, max_epochs=request.data["epochs"], running=False).save()
+		except:
+			return Response({
+				"success": False,
+				"message": "There is another model building, please wait until it's finished"
+			})
 
 		build_model_supervised.delay(request.data, request.user.username, model_path)
 		print(request.user)
@@ -78,9 +90,6 @@ class ModelProgress(APIView):
 			return Response({"message": "There is no active task right now"}, 404)
 
 	def post(self, request: Request):
-		print("Hello")
-		print(request.data)
-
 		try:
 			app.control.revoke(task_id=request.data["task_id"], terminate=True, timeout=1, wait=False)
 		except:
@@ -135,7 +144,8 @@ class ModelOptions(APIView):
 			"layers": LAYERS,
 			"losses": LOSSES,
 			"datasets": DATASETS,
-			"optimizers": OPTIMIZERS
+			"optimizers": OPTIMIZERS,
+			"activations": ACTIVATIONS
 		})
 
 

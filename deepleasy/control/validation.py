@@ -24,7 +24,7 @@ def clustering_checker(data: dict):
 
 def clusters_checker(data: dict):
 	try:
-		return data["n_clusters"] > 1
+		return 300 > data["n_clusters"] > 1
 	except:
 		return False
 
@@ -37,7 +37,9 @@ def parameters_checker(data: dict):
 
 	if data["loss"] not in LOSSES or data["optimizer"] not in OPTIMIZERS or data["dataset"] not in DATASETS:
 		return False
-	if data["batchSize"] < 0 or data["trainPercentage"] < 0.0 or data["trainPercentage"] > 1.0 or data["epochs"] < 1:
+	if data["batchSize"] < 0 or data["batchSize"] > 60000 \
+			or data["trainPercentage"] < 0.5 or data["trainPercentage"] > 1.0 \
+			or data["epochs"] < 1 or data["epochs"] > 100:
 		return False
 
 	if data.get("layers") is None or not isinstance(data["layers"], list):
@@ -73,7 +75,7 @@ def layer_checker(layer: dict):
 
 
 def units_checker(units):
-	return units > 0
+	return 10000 > units > 0
 
 
 def activation_checker(activation):
@@ -85,7 +87,7 @@ def rate_checker(rate):
 
 
 def kernel_checker(kernel):
-	return kernel["x"] > 0 and kernel["y"] > 0
+	return 12 >= kernel["x"] > 0 and 12 >= kernel["y"] > 0
 
 
 def padding_checker(padding):

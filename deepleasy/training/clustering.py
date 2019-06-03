@@ -25,7 +25,7 @@ def build_autoencoder(model_info):
 	decoded = Dense(model_info["input4encoder"])(current_layer)  # decoded features
 	autoencoder = Model(inputs=input_layer, outputs=decoded)  # build auto-encoder
 
-	# train auto-encoder
+	# compile auto-encoder
 
 	autoencoder.compile(optimizer=model_info["autoencoderOptimizer"], loss=model_info["autoencoderLoss"])
 	return autoencoder, encoder
@@ -86,7 +86,7 @@ def build_clustering_model(features, encoder, n_clusters):
 	model = Model(inputs=encoder.input, outputs=clustering_layer)  # initialize the resulting model
 	model.compile(optimizer='sgd', loss='kld')  # compile the model
 	kmeans = KMeans(n_clusters=n_clusters)  # initialize k-means
-	labels = kmeans.fit_predict(encoder.predict(features))  # cluster encoder's outputs
+	kmeans.fit(encoder.predict(features))  # cluster encoder's outputs
 
 	# use k-means labels as initial weights for the clustering layer
 	model.get_layer(name='clustering').set_weights([kmeans.cluster_centers_])

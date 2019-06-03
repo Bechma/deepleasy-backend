@@ -1,11 +1,13 @@
+import math
+
 import numpy as np
 from celery import shared_task
 from django.contrib.auth.models import User
 from tensorflow.contrib.saved_model import save_keras_model
 from tensorflow.python.framework.errors_impl import InvalidArgumentError
 from tensorflow.python.keras.callbacks import Callback
-from tensorflow.python.keras.layers import Dense, Dropout, Flatten, Conv2D, MaxPooling2D
-from tensorflow.python.keras.models import Sequential
+from tensorflow.python.keras.layers import Dense, Dropout, Flatten, Conv2D, MaxPooling2D, Input
+from tensorflow.python.keras.models import Model
 
 from deepleasy.dataset.mnist import get_mnist
 from deepleasy.models import Progress, History
@@ -34,56 +36,35 @@ def get_training_data(dataset: str):
 		return get_mnist()
 
 
-def init_prog_hist(user: str, dataset):
-	user = User.objects.get(username=user)
-	prog = Progress.objects.get(user=user)
-	prog.task_id = build_model_unsupervised.request.id
-	prog.save()
-	history = History(user=user, path="", steps_info={}, dataset=dataset)
-	return prog, history
-
-
 @shared_task
 def build_model_supervised(model_info: dict, user: str, model_path: str):
 	print(model_info)
 
-	model = Sequential()
-	first = True
-
-	prog, history = init_prog_hist(user, model_info["dataset"])
+	user = User.objects.get(username=user)
+	prog = Progress.objects.get(user=user)
+	prog.task_id = build_model_supervised.request.id
+	prog.save()
+	history = History(user=user, path="", steps_info={}, dataset=model_info["dataset"])
 
 	x_train, x_test, y_train, y_test, input_shape = get_training_data(model_info["dataset"])
 
-	for layer in model_info["layers"]:
-		try:
-			if layer["name"] == "Dense":
-				if first:
-					model.add(Dense(layer["units"], layer["activation"], input_shape=input_shape))
-					first = False
-				else:
-					model.add(Dense(layer["units"], layer["activation"]))
-			elif layer["name"] == "Dropout":
-				model.add(Dropout(layer["rate"]))
-			elif layer["name"] == "Conv2D":
-				if first:
-					first = False
-					model.add(
-						Conv2D(layer["units"], (layer["kernel"]["x"], layer["kernel"]["y"]),
-							   activation=layer["activation"], input_shape=input_shape))
-				else:
-					model.add(
-						Conv2D(layer["units"], (layer["kernel"]["x"], layer["kernel"]["y"]), activation=layer["activation"]))
-			elif layer["name"] == "MaxPooling2D":
-				model.add(MaxPooling2D((layer["kernel"]["x"], layer["kernel"]["y"]), padding=layer["padding"]))
-			elif layer["name"] == "Flatten":
-				model.add(Flatten())
-		except:
-			history.steps_info = {"message": "Error dimensions hidden layers"}
-			history.save()
-			prog.delete()
-			return
+	last_layer = Input(shape=input_shape)
+	first_layer = last_layer
 
-	model.compile(model_info["optimizer"], model_info["loss"], ["accuracy"])
+	for layer in model_info["layers"]:
+		if layer["name"] == "Dense":
+			last_layer = Dense(layer["units"], layer["activation"])(last_layer)
+		elif layer["name"] == "Dropout":
+			last_layer = Dropout(layer["rate"])(last_layer)
+		elif layer["name"] == "Conv2D":
+			last_layer = Conv2D(layer["units"], (layer["kernel"]["x"], layer["kernel"]["y"]), activation=layer["activation"])(last_layer)
+		elif layer["name"] == "MaxPooling2D":
+			last_layer = MaxPooling2D((layer["kernel"]["x"], layer["kernel"]["y"]), padding=layer["padding"])(last_layer)
+		elif layer["name"] == "Flatten":
+			last_layer = Flatten()(last_layer)
+
+	model = Model(inputs=first_layer, outputs=last_layer)
+	model.compile(optimizer=model_info["optimizer"], loss=model_info["loss"], metrics=["accuracy"])
 
 	prog.running = True
 	prog.save()
@@ -112,8 +93,8 @@ def build_model_supervised(model_info: dict, user: str, model_path: str):
 	saved_model_path = save_keras_model(model, model_path, as_text=True)
 
 	history.path = saved_model_path.decode()
-	history.accuracy = accuracy[1]
-	history.loss = accuracy[0]
+	history.accuracy = accuracy[1] if accuracy[1] is not None or not math.isnan(accuracy[1]) else 0.0
+	history.loss = accuracy[0] if accuracy[0] is not None or not math.isnan(accuracy[0]) else 0.0
 	history.steps_info = callback.losses
 	history.save()
 
@@ -130,7 +111,11 @@ def build_model_unsupervised(model_info: dict, user, model_path: str):
 		x_train = x_train.reshape(-1, 28 * 28)
 		x_test = x_test.reshape(-1, 28 * 28)
 
-	prog, history = init_prog_hist(user, model_info["dataset"])
+	user = User.objects.get(username=user)
+	prog = Progress.objects.get(user=user)
+	prog.task_id = build_model_unsupervised.request.id
+	prog.save()
+	history = History(user=user, path="", steps_info={}, dataset=dataset)
 
 	n_features = np.shape(x_train)[1]
 	model_info["input4encoder"] = n_features

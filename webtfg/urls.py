@@ -15,7 +15,7 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path
-from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView, TokenVerifyView
+from rest_framework_simplejwt.views import TokenObtainPairView, TokenVerifyView
 
 from deepleasy.views import ModelBuilderSupervised, ModelOptions, ModelProgress, ModelHistory, ModelGetter, \
     ModelBuilderUnsupervised, UserStats
@@ -24,8 +24,8 @@ urlpatterns = [
     path('admin/', admin.site.urls),
 
     path('api/model/options/', ModelOptions.as_view()),
-    path('api/model/builder/supervised', ModelBuilderSupervised.as_view()),
-    path('api/model/builder/unsupervised', ModelBuilderUnsupervised.as_view()),
+    path('api/model/builder/supervised/', ModelBuilderSupervised.as_view()),
+    path('api/model/builder/unsupervised/', ModelBuilderUnsupervised.as_view()),
 
     path('api/model/progress/', ModelProgress.as_view()),
     path('api/model/history/', ModelHistory.as_view()),
@@ -35,14 +35,5 @@ urlpatterns = [
 
     path('api/auth/token/', TokenObtainPairView.as_view()),
     path('api/auth/verify/', TokenVerifyView.as_view()),
-    path('api/auth/refresh/', TokenRefreshView.as_view()),
+    # path('api/auth/refresh/', TokenRefreshView.as_view()),
 ]
-
-"""
-    path('login/', login_view, name="login"),
-    path('logout/', logout_view, name="logout"),
-    path('', home_view),
-
-    path('tool/', tool_view, name="tool"),
-    path('analysing/', analysing_test, name="analysing"),
-"""
