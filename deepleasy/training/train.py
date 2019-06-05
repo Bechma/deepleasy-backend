@@ -9,7 +9,7 @@ from tensorflow.python.keras.callbacks import Callback
 from tensorflow.python.keras.layers import Dense, Dropout, Flatten, Conv2D, MaxPooling2D, Input
 from tensorflow.python.keras.models import Model
 
-from deepleasy.dataset.mnist import get_mnist
+from deepleasy.control.options import DATASETS
 from deepleasy.models import Progress, History
 from deepleasy.training.clustering import train_autoencoder, build_clustering_model
 
@@ -32,8 +32,10 @@ class LossHistory(Callback):
 
 
 def get_training_data(dataset: str):
-	if dataset == "mnist":
-		return get_mnist()
+	for i in DATASETS:
+		if i.name == dataset:
+			return i.x_train, i.x_test, i.y_train, i.y_test, i.input_shape
+	raise ValueError
 
 
 @shared_task

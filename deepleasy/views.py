@@ -143,7 +143,7 @@ class ModelOptions(APIView):
 		return Response({
 			"layers": LAYERS,
 			"losses": LOSSES,
-			"datasets": DATASETS,
+			"datasets": [i.toJSON() for i in DATASETS],
 			"optimizers": OPTIMIZERS,
 			"activations": ACTIVATIONS
 		})

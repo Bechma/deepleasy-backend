@@ -1,4 +1,4 @@
-from .options import *
+from deepleasy.control.options import DATASETS, OPTIMIZERS, LOSSES, ACTIVATIONS
 
 
 def model_builder_ok(data: dict):
@@ -24,7 +24,7 @@ def clustering_checker(data: dict):
 
 def clusters_checker(data: dict):
 	try:
-		return 300 > data["n_clusters"] > 1
+		return 300 > data["n_clusters"] >= 1
 	except:
 		return False
 
@@ -35,7 +35,7 @@ def parameters_checker(data: dict):
 	if not mandatory_params.issubset(set(data.keys())):
 		return False
 
-	if data["loss"] not in LOSSES or data["optimizer"] not in OPTIMIZERS or data["dataset"] not in DATASETS:
+	if data["loss"] not in LOSSES or data["optimizer"] not in OPTIMIZERS:
 		return False
 	if data["batchSize"] < 0 or data["batchSize"] > 60000 \
 			or data["trainPercentage"] < 0.5 or data["trainPercentage"] > 1.0 \
@@ -44,7 +44,11 @@ def parameters_checker(data: dict):
 
 	if data.get("layers") is None or not isinstance(data["layers"], list):
 		return False
-	return True
+
+	for i in DATASETS:
+		if i.name == data["dataset"]:
+			return True
+	return False
 
 
 def layer_checker(layer: dict):
