@@ -207,5 +207,5 @@ class BostonHousing(Dataset):
 			y_test,
 			(x_train.shape[1:]),
 			1,
-			'fashion_mnist'
+			'boston_housing'
 		)

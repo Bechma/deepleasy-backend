@@ -1,4 +1,6 @@
 import math
+import os
+import time
 
 import numpy as np
 from celery import shared_task
@@ -39,10 +41,10 @@ def get_training_data(dataset: str):
 
 
 @shared_task
-def build_model_supervised(model_info: dict, user: str, model_path: str):
+def build_model_supervised(model_info: dict, username: str, model_path: str):
 	print(model_info)
 
-	user = User.objects.get(username=user)
+	user = User.objects.get(username=username)
 	prog = Progress.objects.get(user=user)
 	prog.task_id = build_model_supervised.request.id
 	prog.save()
@@ -92,9 +94,12 @@ def build_model_supervised(model_info: dict, user: str, model_path: str):
 
 	accuracy = model.evaluate(x_test, y_test)
 
-	saved_model_path = save_keras_model(model, model_path, as_text=True)
+	path = os.path.join(model_path, "{}_{}.h5".format(username, int(time.time())))
+	model.save(path)
 
-	history.path = saved_model_path.decode()
+	# saved_model_path = save_keras_model(model, model_path, as_text=True)
+
+	history.path = path  # saved_model_path.decode()
 	history.accuracy = accuracy[1] if accuracy[1] is not None or not math.isnan(accuracy[1]) else 0.0
 	history.loss = accuracy[0] if accuracy[0] is not None or not math.isnan(accuracy[0]) else 0.0
 	history.steps_info = callback.losses
@@ -117,7 +122,7 @@ def build_model_unsupervised(model_info: dict, user, model_path: str):
 	prog = Progress.objects.get(user=user)
 	prog.task_id = build_model_unsupervised.request.id
 	prog.save()
-	history = History(user=user, path="", steps_info={}, dataset=dataset)
+	history = History(user=user, path="", steps_info={}, dataset=model_info["dataset"])
 
 	n_features = np.shape(x_train)[1]
 	model_info["input4encoder"] = n_features

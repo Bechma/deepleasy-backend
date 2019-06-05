@@ -1,16 +1,21 @@
+import io
 import os
-import shutil
-import tempfile
+import zipfile
 
+import h5py
+import numpy as np
+from PIL import Image
 from django.http import HttpResponse
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from tensorflow.python.keras.engine.saving import load_model
 
-from deepleasy.control.options import *
+from deepleasy.control.options import OPTIMIZERS, LOSSES, DATASETS, LAYERS, ACTIVATIONS
 from deepleasy.control.validation import model_builder_ok, clustering_checker
 from deepleasy.models import Progress, History
+from deepleasy.training.clustering import ClusteringLayer
 from deepleasy.training.train import build_model_supervised, build_model_unsupervised
 from webtfg.celery import app
 
@@ -115,7 +120,7 @@ class ModelHistory(APIView):
 		for h in history:
 			registers["history"].append({
 				"id": h.id,
-				"status": os.path.isdir(h.path),
+				"status": os.path.exists(h.path),
 				"path": h.path,
 				"accuracy": h.accuracy,
 				"loss": h.loss,
@@ -128,8 +133,8 @@ class ModelHistory(APIView):
 	def post(self, request: Request):
 		try:
 			history = History.objects.get(id=request.data["id"])
-			if os.path.exists(history.path):
-				shutil.rmtree(history.path)
+			if history.path != "" and os.path.exists(history.path):
+				os.remove(history.path)
 			history.delete()
 			return Response("OK", 200)
 		except:
@@ -154,15 +159,27 @@ class ModelGetter(APIView):
 
 	def post(self, request: Request):
 		try:
-			tmp = tempfile.TemporaryFile()
 			h = History.objects.get(id=request.data["id"])
-			shutil.make_archive(tmp.name, 'zip', h.path)
-			i = open(tmp.name+'.zip', 'rb')
-			r = HttpResponse(i, content_type='application/zip')
+			zip_buffer = io.BytesIO()
+			with zipfile.ZipFile(zip_buffer, "a", zipfile.ZIP_DEFLATED, False) as zip_file:
+				# ModelGetter.zipdir(h.path, zip_file)
+				arc, _ = os.path.split(h.path)
+				zip_file.write(h.path, h.path[len(arc):])
+			r = HttpResponse(zip_buffer.getvalue(), content_type='application/zip')
 			r['Content-Disposition'] = 'attachment; filename="Model.zip"'
 			return r
 		except:
 			return Response("Error", 404)
+
+	@staticmethod
+	def zipdir(path, ziph):
+		# ziph is zipfile handle
+		abs_src, _ = os.path.split(path)
+		for root, dirs, files in os.walk(path):
+			for file in files:
+				absname = os.path.abspath(os.path.join(root, file))
+				arcname = absname[len(abs_src) + 1:]
+				ziph.write(absname, arcname=arcname)
 
 
 class UserStats(APIView):
@@ -197,3 +214,50 @@ class UserStats(APIView):
 			response["history_entries"] = 0
 
 		return Response(response)
+
+
+class ModelPredict(APIView):
+	permission_classes = (IsAuthenticated,)
+
+	def post(self, request: Request):
+		if "zippy" not in request.data.keys():
+			return Response("Where is my zip?", 400)
+
+		try:
+			input_zip = zipfile.ZipFile(request.data["zippy"])
+		except zipfile.BadZipFile:
+			return Response("What kind of zip is this", 400)
+
+		predictions = None
+		model = None
+		pnames = []
+
+		for x in input_zip.namelist():
+			if x.endswith(".h5"):
+				file = h5py.File(io.BytesIO(input_zip.read(x)))
+				model = load_model(file, custom_objects={'ClusteringLayer': ClusteringLayer})
+				print("YES")
+			else:
+				try:
+					image = Image.open(io.BytesIO(input_zip.read(x)))
+					image.load()
+					image = np.asarray(image, dtype="float32") / 255
+					image = image.reshape((28, 28, 1))
+					print(image.shape)
+					if predictions is None:
+						predictions = np.array([image])
+					else:
+						predictions = np.append(predictions, image, axis=0)
+					pnames.append(x)
+				except IOError:
+					pass
+		if model is not None:
+			predictions = model.predict(predictions)
+			predictions = predictions.argmax(axis=1)
+			print("PREDICTIONS\n", predictions)
+			return Response({
+				"fnames": pnames,
+				"predictions": predictions
+			})
+		else:
+			return Response("Where is the h5?", 400)
