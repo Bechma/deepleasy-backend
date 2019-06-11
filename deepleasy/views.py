@@ -223,6 +223,10 @@ class ModelPredict(APIView):
 	def post(self, request: Request):
 		if "zippy" not in request.data.keys():
 			return Response("Where is my zip?", 400)
+		elif "dataset" not in request.data.keys():
+			return Response("Where is the dataset?", 400)
+		elif request.data["dataset"] not in [x.name for x in DATASETS]:
+			return Response("Dataset not valid", 400)
 
 		try:
 			input_zip = zipfile.ZipFile(request.data["zippy"])
@@ -237,14 +241,12 @@ class ModelPredict(APIView):
 			if x.endswith(".h5"):
 				file = h5py.File(io.BytesIO(input_zip.read(x)))
 				model = load_model(file, custom_objects={'ClusteringLayer': ClusteringLayer})
-				print("YES")
 			else:
 				try:
 					image = Image.open(io.BytesIO(input_zip.read(x)))
 					image.load()
 					image = np.asarray(image, dtype="float32") / 255
 					image = image.reshape((28, 28, 1))
-					print(image.shape)
 					if predictions is None:
 						predictions = np.array([image])
 					else:
@@ -255,10 +257,11 @@ class ModelPredict(APIView):
 		if model is not None:
 			predictions = model.predict(predictions)
 			predictions = predictions.argmax(axis=1)
-			print("PREDICTIONS\n", predictions)
+			print("PREDICTIONS", predictions)
 			return Response({
-				"fnames": pnames,
-				"predictions": predictions
+				"predictions": [
+					{"feature": n, "prediction": p} for n, p in zip(pnames, predictions)
+				]
 			})
 		else:
 			return Response("Where is the h5?", 400)
