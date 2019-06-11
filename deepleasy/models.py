@@ -28,6 +28,7 @@ class JsonField(models.TextField):
 
 
 class History(models.Model):
+	timestamp = models.IntegerField(default=0)
 	user = models.ForeignKey(User, on_delete=models.CASCADE, to_field='username')
 	path = models.TextField()
 	accuracy = models.FloatField(default=0.0)

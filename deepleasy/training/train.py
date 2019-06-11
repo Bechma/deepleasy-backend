@@ -48,7 +48,7 @@ def build_model_supervised(model_info: dict, username: str, model_path: str):
 	prog = Progress.objects.get(user=user)
 	prog.task_id = build_model_supervised.request.id
 	prog.save()
-	history = History(user=user, path="", steps_info={}, dataset=model_info["dataset"])
+	history = History(timestamp=int(time.time()), user=user, path="", steps_info={}, dataset=model_info["dataset"])
 
 	x_train, x_test, y_train, y_test, input_shape = get_training_data(model_info["dataset"])
 
@@ -75,7 +75,8 @@ def build_model_supervised(model_info: dict, username: str, model_path: str):
 
 	callback = LossHistory(prog)
 	try:
-		model.fit(x_train, y_train, batch_size=int(model_info["batchSize"]), epochs=int(model_info["epochs"]), callbacks=[callback], verbose=2)
+		model.fit(x_train, y_train, batch_size=int(model_info["batchSize"]), epochs=int(model_info["epochs"]),
+				  callbacks=[callback], verbose=2, validation_split=1.0 - model_info["trainPercentage"])
 	except KeyboardInterrupt:
 		history.steps_info = {"message": "Task cancelled by admin"}
 		history.save()
@@ -122,7 +123,7 @@ def build_model_unsupervised(model_info: dict, user, model_path: str):
 	prog = Progress.objects.get(user=user)
 	prog.task_id = build_model_unsupervised.request.id
 	prog.save()
-	history = History(user=user, path="", steps_info={}, dataset=model_info["dataset"])
+	history = History(timestamp=int(time.time()), user=user, path="", steps_info={}, dataset=model_info["dataset"])
 
 	n_features = np.shape(x_train)[1]
 	model_info["input4encoder"] = n_features

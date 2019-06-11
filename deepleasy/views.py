@@ -117,9 +117,10 @@ class ModelHistory(APIView):
 			"history": []
 		}
 
-		for h in history:
+		for h in reversed(history):
 			registers["history"].append({
 				"id": h.id,
+				"timestamp": h.timestamp,
 				"status": os.path.exists(h.path),
 				"path": h.path,
 				"accuracy": h.accuracy,
