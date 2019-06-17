@@ -122,7 +122,6 @@ class ModelHistory(APIView):
 				"id": h.id,
 				"timestamp": h.timestamp,
 				"status": os.path.exists(h.path),
-				"path": h.path,
 				"accuracy": h.accuracy,
 				"loss": h.loss,
 				"dataset": h.dataset,
@@ -246,11 +245,14 @@ class ModelPredict(APIView):
 					image = Image.open(io.BytesIO(input_zip.read(x)))
 					image.load()
 					image = np.asarray(image, dtype="float32") / 255
-					image = image.reshape((28, 28, 1))
+					try:
+						image = image.reshape((28, 28, 1))
+					except ValueError:
+						return Response("image {} is not in good format".format(x), 400)
 					if predictions is None:
 						predictions = np.array([image])
 					else:
-						predictions = np.append(predictions, image, axis=0)
+						predictions = np.append(predictions, [image], axis=0)
 					pnames.append(x)
 				except IOError:
 					pass
