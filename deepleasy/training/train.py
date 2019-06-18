@@ -1,11 +1,12 @@
 import math
 import os
 import time
+from functools import reduce
 
 import numpy as np
 from celery import shared_task
 from django.contrib.auth.models import User
-from tensorflow.contrib.saved_model import save_keras_model
+from sklearn.utils.linear_assignment_ import linear_assignment
 from tensorflow.python.framework.errors_impl import InvalidArgumentError
 from tensorflow.python.keras.callbacks import Callback
 from tensorflow.python.keras.layers import Dense, Dropout, Flatten, Conv2D, MaxPooling2D, Input
@@ -99,27 +100,25 @@ def build_model_supervised(model_info: dict, username: str, model_path: str):
 	model.save(path)
 
 	# saved_model_path = save_keras_model(model, model_path, as_text=True)
+	prog.delete()
 
 	history.path = path  # saved_model_path.decode()
-	history.accuracy = accuracy[1] if accuracy[1] is not None or not math.isnan(accuracy[1]) else 0.0
-	history.loss = accuracy[0] if accuracy[0] is not None or not math.isnan(accuracy[0]) else 0.0
+	history.accuracy = accuracy[1] if not math.isnan(accuracy[1]) else 0.0
+	history.loss = accuracy[0] if not math.isnan(accuracy[0]) else 0.0
 	history.steps_info = callback.losses
 	history.save()
 
-	prog.delete()
-
 
 @shared_task
-def build_model_unsupervised(model_info: dict, user, model_path: str):
+def build_model_unsupervised(model_info: dict, username, model_path: str):
 	print(model_info)
 
 	x_train, x_test, y_train, y_test, input_shape = get_training_data(model_info["dataset"])
 
-	if model_info["dataset"] == 'mnist':
-		x_train = x_train.reshape(-1, 28 * 28)
-		x_test = x_test.reshape(-1, 28 * 28)
+	one_dimension = reduce(lambda x, y: x * y, input_shape)
+	x_train = x_train.reshape(-1, one_dimension)
 
-	user = User.objects.get(username=user)
+	user = User.objects.get(username=username)
 	prog = Progress.objects.get(user=user)
 	prog.task_id = build_model_unsupervised.request.id
 	prog.save()
@@ -130,21 +129,35 @@ def build_model_unsupervised(model_info: dict, user, model_path: str):
 
 	encoder = train_autoencoder(x_train, model_info)
 	model = build_clustering_model(x_train, encoder, model_info["n_clusters"])
+	steps = []
+	try:
+		y_train = y_train.argmax(1)
+	except:
+		pass
 
 	for i in range(model_info["epochs"]):  # walk through iterations
 		predictions = model.predict(x_train)  # predict clusters
 		weights = predictions ** 2 / predictions.sum(0)  # calculate
 		targets = (weights.T / weights.sum(1)).T  # target distribution
-		model.train_on_batch(x=x_train, y=targets)  # update model weights
+		loss = model.train_on_batch(x=x_train, y=targets)  # update model weights
 
-	saved_model_path = save_keras_model(model, model_path, as_text=True)
+		y_pred = predictions.argmax(1)
+		D = max(y_pred.max(), y_train.max()) + 1
+		confusion_matrix = np.zeros((D, D), dtype=np.int64)
+		# Confusion matrix.
+		for j in range(y_pred.size):
+			confusion_matrix[y_pred[j], y_train[j]] += 1
+		ind = linear_assignment(-confusion_matrix)
+		acc = sum([confusion_matrix[x, y] for x, y in ind]) * 1.0 / y_pred.size
+		steps.append({"accuracy": str(acc), "loss": str(loss)})
 
-	accuracy = model.evaluate(x_test, y_test)
+	path = os.path.join(model_path, "{}_{}.h5".format(username, int(time.time())))
+	model.save(path)
 
-	history.path = saved_model_path.decode()
-	history.accuracy = accuracy
-	history.loss = -1.0
-	history.steps_info = []
+	history.path = path
+	history.accuracy = acc
+	history.loss = loss
+	history.steps_info = steps
 	history.save()
 
 	prog.delete()

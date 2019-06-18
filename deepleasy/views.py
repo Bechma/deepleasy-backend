@@ -1,5 +1,6 @@
 import io
 import os
+import time
 import zipfile
 
 import h5py
@@ -101,7 +102,8 @@ class ModelProgress(APIView):
 			return Response("problem removing", 502)
 
 		Progress.objects.get(task_id=request.data["task_id"]).delete()
-		History(user=request.user, path="error", accuracy=0.0, steps_info={"problem": "Cancelled by user"}).save()
+		History(user=request.user, timestamp=int(int(time.time())), path="", accuracy=0.0, loss=0.0,
+				steps_info={"message": "Cancelled by user"}).save()
 		return Response("removed", 200)
 
 

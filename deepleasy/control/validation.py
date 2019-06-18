@@ -20,6 +20,7 @@ def clustering_checker(data: dict):
 			return True
 	except:
 		return False
+	return False
 
 
 def clusters_checker(data: dict):
