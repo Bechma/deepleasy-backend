@@ -5,6 +5,7 @@ import zipfile
 
 import h5py
 import numpy as np
+import pandas as pd
 from PIL import Image
 from django.http import HttpResponse
 from rest_framework.permissions import IsAuthenticated
@@ -236,19 +237,39 @@ class ModelPredict(APIView):
 
 		predictions = None
 		model = None
+		dataset = None
 		pnames = []
+
+		for i in DATASETS:
+			if i.name == request.data["dataset"]:
+				if i.name == "reuters" or i.name == "imdb":
+					return Response({
+						"predictions": [
+							{"feature": "We cannot predict for {} dataset".format(i.name),
+							 "prediction": "The reason is: https://snyk.io/blog/numpy-arbitrary-code-execution-vulnerability/"}
+						]
+					})
+				dataset = i
+				break
+
+		if dataset is None:
+			return Response("This is not a valid dataset", 400)
 
 		for x in input_zip.namelist():
 			if x.endswith(".h5"):
 				file = h5py.File(io.BytesIO(input_zip.read(x)))
 				model = load_model(file, custom_objects={'ClusteringLayer': ClusteringLayer})
+			elif x.endswith(".csv"):
+				csv = pd.read_csv(io.StringIO(input_zip.read(x)), header=None)
+				predictions = csv.values
+				pnames = [x for x in range(predictions)]
 			else:
 				try:
 					image = Image.open(io.BytesIO(input_zip.read(x)))
 					image.load()
 					image = np.asarray(image, dtype="float32") / 255
 					try:
-						image = image.reshape((28, 28, 1))
+						image = image.reshape(dataset.input_shape)
 					except ValueError:
 						return Response("image {} is not in good format".format(x), 400)
 					if predictions is None:

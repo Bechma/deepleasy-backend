@@ -24,6 +24,9 @@ class Dataset:
 			"output_shape": self.output_shape
 		}
 
+	def prepare_for_predict(self, x_train):
+		pass
+
 	def __str__(self):
 		return self.name
 
@@ -81,23 +84,26 @@ class Cifar100(Dataset):
 class IMDB(Dataset):
 	def __init__(self):
 		num_classes = 1
-		max_features = 5000
-		maxlen = 400
+		self.max_features = 5000
+		self.maxlen = 400
 
-		(x_train, y_train), (x_test, y_test) = imdb.load_data(num_words=max_features)
+		(x_train, y_train), (x_test, y_test) = imdb.load_data(num_words=self.max_features)
 
-		x_train = pad_sequences(x_train, maxlen=maxlen)
-		x_test = pad_sequences(x_test, maxlen=maxlen)
+		x_train = pad_sequences(x_train, maxlen=self.maxlen)
+		x_test = pad_sequences(x_test, maxlen=self.maxlen)
 
 		super().__init__(
 			x_train,
 			x_test,
 			y_train,
 			y_test,
-			(maxlen,),
+			(self.maxlen,),
 			num_classes,
 			'imdb'
 		)
+
+	def prepare_for_predict(self, x_train):
+		return pad_sequences(x_train, maxlen=self.maxlen)
 
 
 class Reuters(Dataset):
@@ -107,9 +113,9 @@ class Reuters(Dataset):
 		# The data, split between train and test sets:
 		(x_train, y_train), (x_test, y_test) = reuters.load_data(num_words=max_words, test_split=0.2)
 		num_classes = np.max(y_train) + 1
-		tokenizer = Tokenizer(num_words=max_words)
-		x_train = tokenizer.sequences_to_matrix(x_train, mode='binary')
-		x_test = tokenizer.sequences_to_matrix(x_test, mode='binary')
+		self.tokenizer = Tokenizer(num_words=max_words)
+		x_train = self.tokenizer.sequences_to_matrix(x_train, mode='binary')
+		x_test = self.tokenizer.sequences_to_matrix(x_test, mode='binary')
 		y_train = to_categorical(y_train, num_classes)
 		y_test = to_categorical(y_test, num_classes)
 
@@ -122,6 +128,9 @@ class Reuters(Dataset):
 			num_classes,
 			'reuters'
 		)
+
+	def prepare_for_predict(self, x_train):
+		return self.tokenizer.sequences_to_matrix(x_train, mode='binary')
 
 
 class Mnist(Dataset):
@@ -209,3 +218,10 @@ class BostonHousing(Dataset):
 			1,
 			'boston_housing'
 		)
+
+	def prepare_for_predict(self, x_train: np.ndarray):
+		mean = x_train.mean(axis=0)
+		x_train -= mean
+		std = x_train.std(axis=0)
+		x_train /= std
+		return x_train
