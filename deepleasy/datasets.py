@@ -225,3 +225,12 @@ class BostonHousing(Dataset):
 		std = x_train.std(axis=0)
 		x_train /= std
 		return x_train
+
+if __name__ == "__main__":
+	Cifar10()
+	Cifar100()
+	IMDB()
+	Reuters()
+	Mnist()
+	FashionMnist()
+	BostonHousing
