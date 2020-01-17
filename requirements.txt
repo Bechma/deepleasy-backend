@@ -1,5 +1,5 @@
-﻿celery
-django==2.2
+celery
+django==2.2.9
 django-cors-headers
 djangorestframework
 djangorestframework-simplejwt
