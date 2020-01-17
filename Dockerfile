@@ -11,6 +11,6 @@ RUN python deepleasy/datasets.py
 
 RUN apt update
 RUN apt install redis-server -y
-RUN service redis-server start
 
-CMD [ "python", "./manage.py", "runserver", "0.0.0.0:8000" ]
+RUN [ "python", "./manage.py", "migrate" ]
+CMD redis-server --daemonize yes && celery -A webtfg worker -D && python ./manage.py runserver 0.0.0.0:8000

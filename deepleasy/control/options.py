@@ -9,8 +9,10 @@ LOSSES = ['binary_crossentropy', 'categorical_crossentropy', 'categorical_hinge'
 		  'mean_squared_error', 'mean_squared_logarithmic_error', 'poisson', 'sparse_categorical_crossentropy',
 		  'squared_hinge']
 
-old = np.load
-np.load = lambda *a, **k: old(*a, **k, allow_pickle=True)
+old = np.load.__defaults__
+# Old fix
+#np.load = lambda *a, **k: old(*a, **k, allow_pickle=True)
+np.load.__defaults__ = (None, True, True, "ASCII")
 DATASETS = [
 	Cifar10(),
 	Cifar100(),
@@ -20,7 +22,7 @@ DATASETS = [
 	FashionMnist(),
 	BostonHousing()
 ]
-np.load = old
+np.load.__defaults__ = old
 
 LAYERS = ["Dense", "Conv2D", "Dropout", "MaxPooling2D", "Flatten"]
 
