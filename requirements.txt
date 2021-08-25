@@ -10,4 +10,4 @@ pandas
 Pillow
 redis
 scikit-learn
-tensorflow==1.15.4
+tensorflow==2.5.1
